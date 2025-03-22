@@ -13,7 +13,9 @@ from browser_use import Agent, Browser, Controller
 from dotenv import load_dotenv
 from browser_use.browser.context import BrowserContextConfig, BrowserContext
 from pydantic import BaseModel
+import logging
 
+logger = logging.getLogger(__name__)
 
 class BrowserUse(Component):
     display_name = "Browser Use Component"
@@ -25,6 +27,13 @@ class BrowserUse(Component):
             info="The specific task instruction for the agent",
             value="Find trending tokens on Solana and Ethereum chains",
             required=True,
+        ),
+        MessageTextInput(
+            name="browser_init_action",
+            display_name="Initial Action",
+            info="a dict of initial actions https://github.com/browser-use/browser-use/blob/main/examples/features/initial_actions.py",
+            value="""[{"open_tab": {"url": "https://dexscreener.com/"}}]""",
+            required=False,
         )
     ]
     outputs = [
@@ -37,8 +46,14 @@ class BrowserUse(Component):
         self.browser_llm = ChatOpenAI(model="gpt-4o")
         self.browser = Browser()
         self.brower_controller = Controller()
+        cookies_path = script_dir + "/browser_cookies.json"
+        logger.info(f"loading cookies from {cookies_path}")
+        if not os.path.exists(cookies_path):
+            raise FileNotFoundError(
+                f"Browser cookies file not found at {cookies_path}"
+            )
         self.browser_config = BrowserContextConfig(
-            cookies_file=script_dir + "/cookies.json",
+            cookies_file=script_dir + "/browser_cookies.json",
             wait_for_network_idle_page_load_time=3.0,
             browser_window_size={"width": 1280, "height": 1100},
             locale="en-US",
@@ -51,7 +66,11 @@ class BrowserUse(Component):
         )
 
     async def build_output(self) -> Data:
-        initial_actions = []
+        try:
+            initial_actions = json.loads(self.browser_init_action)
+        except json.JSONDecodeError:
+            logger.warning("Invalid JSON format for initial actions. Using empty list.")
+            initial_actions = []
         agent = Agent(
             llm=self.browser_llm,
             initial_actions=initial_actions,
@@ -63,3 +82,11 @@ class BrowserUse(Component):
         tokens = json.loads(history.final_result())
         # tokens=Tokens(tokens=[])
         return Data(tokens=tokens)
+
+if __name__ == "__main__":
+    browser_use = BrowserUse()
+    input_data = {
+        "task": "Find trending tokens on Solana and Ethereum chains",
+        "browser_init_action": '[{"open_tab": {"url": "https://dexscreener.com/"}}]',
+    }
+    output_data = browser_use.run(input_data)

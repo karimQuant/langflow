@@ -2,12 +2,19 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Python Debugger: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
       "name": "Debug Backend",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "preLaunchTask": "Install Backend",
-
       "args": [
         "--factory",
         "langflow.main:create_app",
@@ -72,7 +79,9 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
-      "purpose": ["debug-test"],
+      "purpose": [
+        "debug-test"
+      ],
       "console": "integratedTerminal",
       "justMyCode": false
     }
